@@ -10,7 +10,7 @@ with open(INPUT_CSV, newline="") as f:
     reader = csv.DictReader(f)
     for row in reader:
         person_id = row["person_id"].strip()
-        if person_id == "":
+        if person_id == "" or person_id.upper() == "NG":
             continue
         person_to_ids[person_id].add(int(row["track_id"]))
 
