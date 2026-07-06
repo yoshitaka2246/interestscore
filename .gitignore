@@ -1,4 +1,5 @@
 *.avi
 output.mp4
 output.csv
+tracks_summary.csv
 runs/
