@@ -2,4 +2,5 @@
 output.mp4
 output.csv
 tracks_summary.csv
+track_frames/
 runs/
