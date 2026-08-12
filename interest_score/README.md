@@ -7,12 +7,11 @@
 「関心度」を定量化することを目的とする。詳細は親ディレクトリの `CLAUDE.md` および
 `docs/` を参照。
 
-## 現在のステータス: Phase 0（環境整備）完了
+## 現在のステータス: Phase 1（End-to-End CLI）完了
 
-CLIパイプライン・Webアプリの実装コードはまだ書かれていません。今あるのは、
-ディレクトリ構造・設定ファイル・移行済みの旧研究コードのみです。
-
-実装を始める際は `docs/02_next_session_todo.md` から着手してください。
+`動画 → 人物検出 → 追跡 → 特徴量 → Interest Score → result.mp4/persons.csv` の
+CLIパイプラインが動作します(`src/interest_estimation/`)。次はPhase 2
+(Experiment Infrastructure)です。詳細は `docs/02_next_session_todo.md` を参照してください。
 
 ## パイプライン
 

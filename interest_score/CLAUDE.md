@@ -5,9 +5,13 @@
 
 ## 現在のフェーズ
 
-**Phase 0（環境整備）完了。Phase 1（End-to-End CLI）未着手。**
+**Phase 1（End-to-End CLI）完了。Phase 2（Experiment Infrastructure）未着手。**
 
-フェーズ順序は厳守する。Web UIやDocker化をPhase 1より先に着手しない。
+`python scripts/run_video.py --input data/raw/sample01.mp4 --config configs/default.yaml` で
+result.mp4 / persons.csv / frames.csv / config.yaml / metadata.json / run.log が
+`results/<run_id>/` に出力されることを確認済み（sample01.mp4で24トラック検出）。
+
+フェーズ順序は厳守する。Web UI（Phase 3）やDocker化をPhase 2より先に着手しない。
 
 ```
 Phase 1: End-to-End CLI（動画→検出→追跡→特徴量→Score→result.mp4/persons.csv）

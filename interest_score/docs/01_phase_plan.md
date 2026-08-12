@@ -5,9 +5,9 @@
 - [x] **Phase 0: Repository inspection / 既存コード整理**
   既存研究コード（`legacy_reference/`）を確認・保存。ディレクトリ整理。Config雛形作成。
 
-- [ ] **Phase 1: End-to-End CLI**（最重要マイルストーン）
+- [x] **Phase 1: End-to-End CLI**（最重要マイルストーン）
   `video.mp4 → Detection → Tracking → Feature → Score → result.mp4 + persons.csv` が安定動作すること。
-  完了条件は `docs/02_next_session_todo.md` 参照。
+  `src/interest_estimation/` 配下に実装済み。sample01.mp4での動作確認済み。
 
 - [ ] **Phase 2: Experiment Infrastructure**
   YAML Config運用、Run ID、metadata.json（git commit hash・Pythonバージョン等）、Result Directory、Experiment Runner。

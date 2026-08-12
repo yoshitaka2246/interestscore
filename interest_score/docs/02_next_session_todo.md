@@ -1,60 +1,42 @@
-# 次セッションのTODO（実装着手ガイド）
+# 次セッションのTODO(実装着手ガイド)
 
-このドキュメントは「Webアプリ実装して」と指示された際に、確認を最小限にしてすぐ着手できるようにするためのもの。
+## Phase 1: End-to-End CLI — 完了
 
-## 重要な前提
+`動画 → Detection → Tracking → Feature → Score → result.mp4 + persons.csv` が
+sample01.mp4で動作確認済み(24トラック検出、`results/<run_id>/`に全出力あり)。
 
-仕様書の最重要方針（セクション2）により、**Web UIより先にCLIパイプラインを完成させる**。
-「Webアプリ実装して」という指示は「システムの実装に着手する」という意味で受け取り、
-以下のPhase 1（CLI End-to-End）から着手すること。いきなりFastAPI/Next.jsを書き始めない。
+実装場所:
 
-Bypass Permissionsモードは設定済み（`.claude/settings.local.json`）なので、
-軽微な判断は都度確認せず自律的に進めてよい。既存コードを壊す可能性が高い変更のみ慎重に扱う。
+- `src/interest_estimation/detection/` — `detector.py`(抽象IF)+ `yolo_detector.py`
+- `src/interest_estimation/tracking/` — `tracker.py`(抽象IF・PersonTrack)+ `bytetrack_tracker.py`
+- `src/interest_estimation/features/` — `dwell_time.py`, `speed.py`(実装済み)、
+  `body_direction.py`, `face_direction.py`(ダミー、`enabled: false`)
+- `src/interest_estimation/scoring/` — `normalization.py`, `score_v1.py`, `scorer.py`
+- `src/interest_estimation/pipeline/video_pipeline.py` — 全体を統合する中心クラス
+- `src/interest_estimation/visualization/video_renderer.py` — bbox/ID/Score描画
+- `src/interest_estimation/experiment/result_writer.py` — run_id・metadata.json・config.yaml出力
+- `scripts/run_video.py` — CLIエントリポイント
+- `tests/` — GPUなしで動くロジック(config, normalization, dwell_time, speed, score_v1)のテスト済み
 
-## Phase 1: End-to-End CLI 実装順序（仕様書セクション65準拠）
+### 環境構築メモ
 
-1. **Detection interface** — `src/interest_estimation/detection/detector.py`（抽象IF）+ `yolo_detector.py`
-   `legacy_reference/track_video.py` の `model.track(...)` 呼び出し部分を、Detector/Trackerに分離する形で移植する。
-   出力形式は仕様書セクション11の `Detection(bbox, confidence, class_id)`。
+このMac(Apple Silicon)はターミナルがRosetta経由でIntel版Homebrew(`/usr/local`)を使っており、
+PyTorchはmacOS x86_64向けに`2.2.2`までしか提供されていない。`.venv`は
+`brew install python@3.12`(Intel版)で作成したPython 3.12を使用している。
+`numpy<2`・`opencv-python<4.10`にピン留めしないと、torch(numpy1向けビルド)と
+opencv-python 5.x(numpy2必須)が衝突するため、`requirements.txt`で固定済み。
+`ultralytics`が`lap`パッケージを自動インストールしようとするため、`requirements.txt`に明示追加済み。
 
-2. **Tracking interface** — `tracking/tracker.py`（抽象IF）+ `bytetrack_tracker.py`
-   `legacy_reference/track_video.py` の `tracker="bytetrack.yaml"` 部分を移植。`PersonTrack`（セクション13）としてbbox/position/timestampsの履歴を保持する構造にする。
+## Phase 2: Experiment Infrastructure — 次に着手
 
-3. **Feature interface** — `features/dwell_time.py`, `features/speed.py`
-   `dwell_time`は `legacy_reference/summarize_tracks.py` のロジック（first_seen/last_seen）を移植して0-1正規化する。
-   `speed`はbbox中心点の時間変化から新規実装（pixel/secでよい、仕様書セクション17）。
-   `body_direction`, `face_direction` は最初は `enabled: false` のダミー実装（常に0を返す）でよい（仕様書セクション19）。
+`docs/01_phase_plan.md`参照。Run ID・metadata.json(git commit hash等)・config.yaml保存・
+Result Directoryは`experiment/result_writer.py`で既に実装済み。残っているのは:
 
-4. **Interest Score** — `scoring/scorer.py`, `scoring/score_v1.py`, `scoring/normalization.py`
-   `configs/score_v1.yaml` の重みを使い、`I = wd*dwell + ws*speed + wb*body + wf*face` を実装。
-   **`score_v1.py`は今後上書きしない**。改善時は`score_v2.py`を新規作成。
-
-5. **VideoPipeline** — `pipeline/video_pipeline.py`
-   Detector/Tracker/Feature/Scorerを疎結合に組み合わせる中心クラス。ベタ書き禁止（仕様書セクション10）。
-
-6. **CLI** — `scripts/run_video.py`
-   ```bash
-   python scripts/run_video.py --input data/raw/sample01.mp4 --config configs/default.yaml
-   ```
-
-7. **Result output** — `experiment/result_writer.py`
-   `results/<run_id>/` に `result.mp4`, `persons.csv`, `frames.csv`, `config.yaml`, `metadata.json`, `run.log` を出力。
-   `result.mp4`にはID・Interest Score・bboxを描画（`visualization/video_renderer.py`、`legacy_reference/track_video.py`の描画部分を再利用可能）。
-
-## Phase 1 完了条件（仕様書セクション66）
-
-```
-sample01.mp4 を入力 → result.mp4 (ID/Score/bbox描画済み) + persons.csv + frames.csv + config.yaml + metadata.json + run.log が出力される
-```
+- **Experiment Runner**: `configs/experiments/`配下に複数の実験設定(重みや閾値違い)を置き、
+  一括実行して`results/`に比較可能な形で出力する仕組み。
+- 複数動画・複数configの一括実行CLI(`scripts/run_experiment.py`等)。
 
 ## その後
 
-Phase 2（Experiment Infrastructure: Run ID, metadata, git commit hash）→
-Phase 3（Web UI）→ Phase 4（Evaluation）→ Phase 5（Research Improvement）
-の順で進める。詳細は `01_phase_plan.md`。
-
-## 実行環境について
-
-- Python 3.11想定。`requirements.txt`は用意済みだが、まだ `pip install` は実行していない。
-- GPU環境（研究室PC/自宅PC/RunPod等）はセッションごとに異なる可能性がある。`runtime.device: auto` でCPUフォールバックする前提で実装する。
-- iCloud同期の影響で大きいファイル（動画・重み）の初回アクセスが遅い場合がある（`docs/00_architecture.md`参照）。
+Phase 3(Web UI)→ Phase 4(Evaluation)→ Phase 5(Research Improvement)の順で進める。
+詳細は `01_phase_plan.md`。Web UIより先にCLI・実験基盤を安定させる方針は変わらない。

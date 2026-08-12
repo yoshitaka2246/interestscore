@@ -2,8 +2,9 @@
 torch
 torchvision
 ultralytics
-opencv-python
-numpy
+lap>=0.5.12
+opencv-python<4.10
+numpy<2
 pandas
 pyyaml
 pydantic>=2
