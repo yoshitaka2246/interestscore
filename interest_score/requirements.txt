@@ -1,0 +1,17 @@
+# Backend / AI
+torch
+torchvision
+ultralytics
+opencv-python
+numpy
+pandas
+pyyaml
+pydantic>=2
+
+# Web API (Phase 3)
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Dev / Test
+pytest

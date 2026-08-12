@@ -1,0 +1,17 @@
+# Interest Score 2.0（機械学習, ゼミ第6回予定）
+# 入力: F(顔向き) B(体向き) T(滞在時間) V(歩行速度) -> MLP -> 出力: 人間評価スコア (0-5)
+#
+# NOTE: score_v1の実験・評価が完了してから着手する（仕様書セクション61: Research Improvement）。
+# 以下はPhase 5着手時に定義する項目のプレースホルダー。score_v1.yamlを上書きしないこと（バージョン管理方針）。
+
+scoring:
+  version: v2
+
+  model:
+    type: mlp
+    # hidden_layers: []
+    # input_features: [dwell_time, speed, body_direction, face_direction]
+
+  # training:
+  #   dataset: annotations/
+  #   epochs: 0

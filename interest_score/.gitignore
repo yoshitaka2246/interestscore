@@ -1,0 +1,44 @@
+# データ・生成物（ディレクトリ構造は.gitkeepで保持）
+data/raw/*
+data/processed/*
+data/annotations/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/annotations/.gitkeep
+
+results/*
+!results/.gitkeep
+
+experiments/*/outputs/*
+
+# メディア・モデル重み
+*.mp4
+*.avi
+*.mov
+*.pt
+*.pth
+
+# legacy_reference内の実行生成物
+legacy_reference/output.avi
+legacy_reference/output.mp4
+legacy_reference/output.csv
+legacy_reference/tracks_summary.csv
+legacy_reference/track_frames/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Env / secrets
+.env
+
+# Web (Phase 3)
+web/frontend/node_modules/
+web/frontend/.next/
+web/backend/__pycache__/
+
+# OS
+.DS_Store

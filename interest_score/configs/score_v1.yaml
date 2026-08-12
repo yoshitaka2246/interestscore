@@ -1,0 +1,15 @@
+# Interest Score 1.0（ルールベース）
+# I = wd*dwell + ws*speed + wb*body_direction + wf*face_direction
+# 重みは実験結果を見ながら手動調整する（卒論CLAUDE.md参照）
+
+scoring:
+  version: v1
+
+  weights:
+    dwell_time: 0.4
+    speed: 0.3
+    body_direction: 0.3
+    face_direction: 0.0
+
+  # 人物単位の最終スコアは 0-100 にスケールして表示する（内部処理は0-1）
+  output_scale: 100

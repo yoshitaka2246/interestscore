@@ -1,0 +1,16 @@
+{
+  "todo": [],
+  "in-progress": [],
+  "testing": [],
+  "done": [
+    {
+      "assignedTo": {
+        "name": "yoshi"
+      },
+      "creation_time": "2026-06-10T05:33:05.579Z",
+      "id": "1",
+      "references": [],
+      "title": "テーマ決定"
+    }
+  ]
+}

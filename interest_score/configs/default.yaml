@@ -1,0 +1,47 @@
+# デフォルト実験設定
+# 仕様書 セクション9 (Config Driven Architecture) に準拠
+
+experiment:
+  name: baseline_v1
+  seed: 42
+
+video:
+  input: data/raw/sample01.mp4
+
+detection:
+  model: yolo11n.pt
+  confidence: 0.3
+  iou_threshold: 0.5
+
+tracking:
+  type: bytetrack
+
+features:
+  dwell_time:
+    enabled: true
+
+  speed:
+    enabled: true
+
+  body_direction:
+    enabled: false
+
+  face_direction:
+    enabled: false
+
+scoring:
+  version: v1
+
+  weights:
+    dwell_time: 0.4
+    speed: 0.3
+    body_direction: 0.3
+    face_direction: 0.0
+
+output:
+  save_video: true
+  save_frame_data: true
+  save_person_data: true
+
+runtime:
+  device: auto
