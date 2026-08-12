@@ -66,6 +66,67 @@ DB不使用、`results/`ディレクトリを直接スキャンする方式。
   `visualization/video_renderer.py`の`transcode_to_h264()`でffmpeg経由H.264変換を追加済み。
   バックエンドホストに`ffmpeg`が無いと変換がスキップされ再生できないので要注意。
 
+## AWSデプロイ・EC2運用(2026-08-12時点)
+
+Web UIはAWS EC2(CDK管理、`interest_score/infra/`)+ Vercelで本番稼働中。
+Vercelの404トラブル(Framework Preset未検出・Deployment Protection・CLI実行ディレクトリ)は
+解決済み、`docs/03_deployment.md`に記録済み。
+
+- バックエンドURL: `https://api.yoshi-yamamoto.com`
+- フロントエンドURL: `https://interestscore.vercel.app`
+- EC2 instance ID: `i-055d908b321280579`(t3.large, ap-northeast-1)
+- **EC2は現在stop済み**(2026-08-12夜、コスト節約のため作業終了時に停止)。
+  次回使う前に `aws ec2 start-instances --instance-ids i-055d908b321280579 --region ap-northeast-1`
+  または後述のフロントエンド機能で起動すること。
+
+### 進行中・中断した作業: GPUインスタンス移行
+
+ユーザーはg4dn.2xlarge(NVIDIA T4, 8vCPU/32GB, $1.015/時間)へのGPU移行を選択済み。
+**コードは書き終わっているが、まだCDK deployできていない**(下記の理由で中断)。
+
+実装済み(未デプロイ):
+- `infra/lib/backend-stack.ts`: `computeType=gpu`時にg4dn.2xlarge + AWS Deep Learning Base AMI
+  (`ami-0afd7aa8518a6f0a1`, Ubuntu 26.04, NVIDIA driver同梱)を使うよう変更済み。
+  CPU/GPUどちらのAMIを使うか、AMI IDが古くなっていないかは
+  `aws ec2 describe-images --owners amazon --filters "Name=name,Values=Deep Learning Base*Ubuntu*"`
+  で確認すること。
+- **EC2起動/停止をフロントエンドから操作する機能**(パスワード保護)も実装済み:
+  - `web/frontend/src/app/api/instance/route.ts` — Next.js API route。AWS SDK(`@aws-sdk/client-ec2`)で
+    EC2の状態取得(GET)・起動停止(POST、`INSTANCE_CONTROL_PASSWORD`で認証)を行う。
+    EC2が停止中でもVercel側(常時稼働)から操作できるのがポイント。
+  - `web/frontend/src/lib/instance-api.ts` — 型付きAPIクライアント
+  - `web/frontend/src/components/instance-control.tsx` — トップページの操作UI
+  - `infra/lib/backend-stack.ts`に`InstanceControlUser`(IAMユーザー、EC2のStart/Stopのみ許可の
+    最小権限)と`InstanceControlAccessKey`を追加済み。**まだcdk deployしていないのでAWS上には
+    存在しない**。
+
+**次回やること(残作業)**:
+1. `cd interest_score/infra && npx cdk deploy -c vercelOrigin=https://interestscore.vercel.app -c computeType=gpu`
+   を実行し、g4dn.2xlargeへの切り替え + InstanceControlUser作成を反映する
+   (`cdk diff`で内容を確認してから)。
+2. デプロイ後、`aws cloudformation describe-stacks --stack-name InterestScoreBackendStack`から
+   `InstanceControlAccessKeyId` / `InstanceControlSecretAccessKey` を取得し、Vercelの環境変数に設定:
+   `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION=ap-northeast-1`,
+   `EC2_INSTANCE_ID=i-055d908b321280579`, `INSTANCE_CONTROL_PASSWORD=(決めたパスワード)`。
+   アクセスキーは出力に平文で出るため、ターミナル履歴やログに残さないよう扱いに注意。
+3. フロントエンドを再デプロイ(`vercel --prod --force --cwd .` を**リポジトリルートから**実行。
+   `docs/03_deployment.md`のVercel CLIの罠を参照)。
+4. トップページから起動/停止ボタンで実際に動作確認する。
+5. GPU化後は`requirements.txt`のtorchが実際にCUDAを使えているか(`runtime.device: auto`が
+   `cuda`を選ぶか)、`nvidia-smi`と合わせて確認すること。
+
+**中断した理由**: このMac(ユーザーのローカル環境)で`fileproviderd`(iCloud同期デーモン)が
+CPU 100%超で張り付き、`npx tsc`という単純なコンパイルすら数分〜完了せず`cdk synth`が
+進まなくなった。原因は今回のセッションで`node_modules`を複数回インストールした結果、
+iCloud Desktop同期(`~/Desktop`配下)が大量の小ファイルの同期に苦しんでいたため。
+`mv`でnode_modulesを退避する対処も試したが`mv`自体がI/O詰まりでタイムアウトした。
+ユーザーには「iCloud Driveを一時オフにする」「Macを再起動する」を提案し、今回はここで
+作業を中断してiCloud処理が落ち着くのを待つことにした。**次回セッション開始時、まず
+`uptime`と`ps aux | grep fileproviderd`で負荷が正常(load average <3程度)に戻っているか
+確認してから`cdk synth`/`npm run build`等の重い処理を実行すること。**
+再発する場合は`node_modules`をiCloud同期対象外の場所(`~/.cache`等)に置いてシンボリックリンクで
+参照する回避策を検討する(今回は`mv`が詰まって完了できなかった)。
+
 ## Phase 4: Evaluation — Ground Truthデータが揃うまで着手不可
 
 人間が動画を見て0-5点を付けたGround Truthデータ(`00_研究管理`のCLAUDE.md参照)が

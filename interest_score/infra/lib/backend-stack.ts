@@ -16,10 +16,18 @@ export interface BackendStackProps extends cdk.StackProps {
 }
 
 // "cpu"は安価な検証用、"gpu"はYOLO推論を高速化したい時に切り替える(-c computeType=gpu)。
+// g4dn.2xlarge: NVIDIA T4(16GB) + 8vCPU/32GB。動画デコード等の前処理がCPUボトルネックに
+// ならないよう、GPUはxlargeと同じT4のままCPU/メモリを増やした構成を選んでいる。
 const INSTANCE_TYPE_BY_COMPUTE: Record<"cpu" | "gpu", ec2.InstanceType> = {
   cpu: ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.LARGE),
-  gpu: ec2.InstanceType.of(ec2.InstanceClass.G4DN, ec2.InstanceSize.XLARGE),
+  gpu: ec2.InstanceType.of(ec2.InstanceClass.G4DN, ec2.InstanceSize.XLARGE2),
 };
+
+// AWS Deep Learning Base AMI(NVIDIA driver同梱、Ubuntu 26.04)。ap-northeast-1限定でAMI IDを
+// 直接指定している(SSM Latest パラメータがこのAMI系列には無いため)。更新する場合は
+// `aws ec2 describe-images --owners amazon --filters "Name=name,Values=Deep Learning Base*Ubuntu*"`
+// で最新IDを確認する。
+const GPU_AMI_ID_AP_NORTHEAST_1 = "ami-0afd7aa8518a6f0a1";
 
 export class BackendStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: BackendStackProps) {
@@ -64,12 +72,15 @@ export class BackendStack extends cdk.Stack {
       .replaceAll("__CORS_ORIGINS__", `${props.vercelOrigin},https://${fqdn}`)
       .replaceAll("__DOMAIN__", fqdn);
 
-    // Ubuntu 24.04(Python 3.12標準、CaddyのAPTリポジトリが使える)。将来GPU機に切り替える際も
-    // Deep Learning AMIはUbuntuベースのため構成の連続性がある。
-    const machineImage = ec2.MachineImage.fromSsmParameter(
-      "/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id",
-      { os: ec2.OperatingSystemType.LINUX }
-    );
+    // CPU: Ubuntu 24.04(Python 3.12標準、CaddyのAPTリポジトリが使える)。
+    // GPU: NVIDIA driver同梱のDeep Learning Base AMI(Ubuntuベースなので同じUserDataが動く)。
+    const machineImage =
+      props.computeType === "gpu"
+        ? ec2.MachineImage.genericLinux({ "ap-northeast-1": GPU_AMI_ID_AP_NORTHEAST_1 })
+        : ec2.MachineImage.fromSsmParameter(
+            "/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id",
+            { os: ec2.OperatingSystemType.LINUX }
+          );
 
     const instance = new ec2.Instance(this, "BackendInstance", {
       instanceName: `interest-score-backend-${props.envName}`,
@@ -105,5 +116,36 @@ export class BackendStack extends cdk.Stack {
     new cdk.CfnOutput(this, "BackendUrl", { value: `https://${fqdn}` });
     new cdk.CfnOutput(this, "InstanceId", { value: instance.instanceId });
     new cdk.CfnOutput(this, "ElasticIp", { value: eip.ref });
+
+    // Vercel(Next.jsのAPI route)からEC2の起動/停止を操作するための最小権限ユーザー。
+    // EC2はStart/Stopできるが、それ以外(TerminateInstances等)は一切許可しない。
+    const instanceControlUser = new iam.User(this, "InstanceControlUser", {
+      userName: `interest-score-instance-control-${props.envName}`,
+    });
+    instanceControlUser.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ["ec2:StartInstances", "ec2:StopInstances"],
+        resources: [
+          `arn:aws:ec2:${this.region}:${this.account}:instance/${instance.instanceId}`,
+        ],
+      })
+    );
+    instanceControlUser.addToPolicy(
+      // DescribeInstances(状態確認)はリソースレベル権限に対応していないため"*"が必須
+      new iam.PolicyStatement({
+        actions: ["ec2:DescribeInstances"],
+        resources: ["*"],
+      })
+    );
+    const instanceControlAccessKey = new iam.CfnAccessKey(this, "InstanceControlAccessKey", {
+      userName: instanceControlUser.userName,
+    });
+
+    new cdk.CfnOutput(this, "InstanceControlAccessKeyId", {
+      value: instanceControlAccessKey.ref,
+    });
+    new cdk.CfnOutput(this, "InstanceControlSecretAccessKey", {
+      value: instanceControlAccessKey.attrSecretAccessKey,
+    });
   }
 }

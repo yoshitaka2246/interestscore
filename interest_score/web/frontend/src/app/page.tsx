@@ -13,6 +13,7 @@ import {
   startRun,
   uploadVideo,
 } from "@/lib/api";
+import { InstanceControl } from "@/components/instance-control";
 import { StatusBadge } from "@/components/status-badge";
 
 export default function HomePage() {
@@ -108,6 +109,8 @@ export default function HomePage() {
           {errorMessage}
         </p>
       )}
+
+      <InstanceControl />
 
       <section className="rounded-lg border border-neutral-200 bg-white p-6 space-y-4">
         <h2 className="text-lg font-medium">動画をアップロード</h2>
