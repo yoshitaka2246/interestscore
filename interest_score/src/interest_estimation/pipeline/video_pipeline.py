@@ -16,7 +16,7 @@ from interest_estimation.tracking.bytetrack_tracker import ByteTrackTracker
 from interest_estimation.tracking.tracker import PersonTrack, TrackedBox, TrackObservation, VideoMeta
 from interest_estimation.utils.config import AppConfig
 from interest_estimation.utils.logging import setup_run_logger
-from interest_estimation.visualization.video_renderer import VideoRenderer
+from interest_estimation.visualization.video_renderer import VideoRenderer, transcode_to_h264
 
 FrameRecord = tuple[int, float, list[TrackedBox]]
 
@@ -32,8 +32,20 @@ class VideoPipeline:
     def __init__(self, config: AppConfig) -> None:
         self.config = config
 
-    def run(self, input_video: str | Path, results_root: str | Path = "results") -> RunResult:
-        run_dir = create_run_dir(results_root, self.config.experiment.name)
+    def run(
+        self,
+        input_video: str | Path,
+        results_root: str | Path = "results",
+        run_dir: Path | None = None,
+    ) -> RunResult:
+        """動画を処理してrun_dirに結果一式を出力する。
+
+        run_dir未指定時はこのメソッド内でrun_idを発行して作成する(CLI用途)。
+        Web API側であらかじめrun_idを払い出したい場合は、
+        `experiment.result_writer.create_run_dir()` で作成したディレクトリを渡す。
+        """
+        if run_dir is None:
+            run_dir = create_run_dir(results_root, self.config.experiment.name)
         logger = setup_run_logger(run_dir)
         logger.info("run開始: input=%s run_dir=%s", input_video, run_dir)
 
@@ -148,7 +160,8 @@ class VideoPipeline:
             frame_idx: boxes for frame_idx, _, boxes in frame_records
         }
 
-        renderer = VideoRenderer(output_path, video_meta.fps, video_meta.width, video_meta.height)
+        raw_path = output_path.with_name(f"{output_path.stem}.raw.mp4")
+        renderer = VideoRenderer(raw_path, video_meta.fps, video_meta.width, video_meta.height)
         cap = cv2.VideoCapture(str(input_video))
         try:
             frame_idx = 0
@@ -167,3 +180,8 @@ class VideoPipeline:
         finally:
             cap.release()
             renderer.release()
+
+        if transcode_to_h264(raw_path, output_path):
+            raw_path.unlink(missing_ok=True)
+        else:
+            raw_path.replace(output_path)

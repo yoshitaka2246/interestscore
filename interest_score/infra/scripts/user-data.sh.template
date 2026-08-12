@@ -1,0 +1,60 @@
+#!/bin/bash
+set -euxo pipefail
+
+# === システム依存パッケージ ===
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y
+apt-get install -y git curl ffmpeg python3.12 python3.12-venv build-essential \
+  debian-keyring debian-archive-keyring apt-transport-https
+
+# === Caddy(自動HTTPSリバースプロキシ) ===
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' \
+  | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' \
+  | tee /etc/apt/sources.list.d/caddy-stable.list
+apt-get update -y
+apt-get install -y caddy
+
+# === アプリケーション取得 ===
+APP_ROOT=/opt/interest-score
+if [ ! -d "$APP_ROOT" ]; then
+  git clone --depth 1 https://github.com/yoshitaka2246/interestscore.git "$APP_ROOT"
+fi
+cd "$APP_ROOT/interest_score"
+
+python3.12 -m venv .venv
+./.venv/bin/pip install --upgrade pip
+./.venv/bin/pip install -r requirements.txt
+
+chown -R ubuntu:ubuntu "$APP_ROOT"
+
+# === systemd: FastAPIバックエンド(常駐、起動時に自動開始) ===
+cat > /etc/systemd/system/interest-score-backend.service <<'EOF'
+[Unit]
+Description=Interest Score FastAPI backend
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/interest-score/interest_score/web/backend
+Environment=CORS_ORIGINS=__CORS_ORIGINS__
+ExecStart=/opt/interest-score/interest_score/.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# === Caddyfile: __DOMAIN__ 宛のHTTPSを自動取得し、backendへプロキシ ===
+cat > /etc/caddy/Caddyfile <<'EOF'
+__DOMAIN__ {
+    reverse_proxy 127.0.0.1:8000
+}
+EOF
+
+systemctl daemon-reload
+systemctl enable --now interest-score-backend
+systemctl enable --now caddy
+systemctl restart caddy

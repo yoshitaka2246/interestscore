@@ -9,18 +9,23 @@
   `video.mp4 → Detection → Tracking → Feature → Score → result.mp4 + persons.csv` が安定動作すること。
   `src/interest_estimation/` 配下に実装済み。sample01.mp4での動作確認済み。
 
-- [ ] **Phase 2: Experiment Infrastructure**
-  YAML Config運用、Run ID、metadata.json（git commit hash・Pythonバージョン等）、Result Directory、Experiment Runner。
+- [~] **Phase 2: Experiment Infrastructure**(一部完了)
+  YAML Config運用・Run ID・metadata.json（git commit hash・Pythonバージョン等）・Result Directoryは
+  `experiment/result_writer.py`で実装済み(Phase 1と同時に完了)。
+  複数config一括実行の**Experiment Runner**は未実装(`docs/02_next_session_todo.md`参照)。
 
-- [ ] **Phase 3: Web UI**
-  動画アップロード、Config編集、実行、進捗表示、結果閲覧、Experiment History。
-  FastAPI + (Next.js or Streamlit/Gradio)。DB不使用（ファイルベース）。
+- [x] **Phase 3: Web UI**
+  動画アップロード、実行トリガー、進捗表示(ポーリング)、結果閲覧(動画+人物別Interest Score表)を実装。
+  FastAPI(`web/backend/`) + Next.js(`web/frontend/`)。DB不使用（ファイルベース、`results/`を直接スキャン）。
+  デプロイ手順は `docs/03_deployment.md` 参照。
 
 - [ ] **Phase 4: Evaluation**
   Ground Truth loader、Tracking evaluation（ID Switch等）、Score evaluation（Spearman/Pearson/MAE）、Ablation Study。
+  **人間が動画を見て0-5点を付与したGround Truthデータが前提**であり、そのデータが揃うまで着手できない。
 
 - [ ] **Phase 5: Research Improvement**
   実験結果を見た上でのみ着手。Score式改善、新Feature、Pose estimation、Weight最適化等。
+  Phase 4の評価結果が前提。
 
 ## ゼミ発表スケジュールとの対応（親CLAUDE.md参照）
 

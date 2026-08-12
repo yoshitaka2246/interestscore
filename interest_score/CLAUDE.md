@@ -5,13 +5,17 @@
 
 ## 現在のフェーズ
 
-**Phase 1（End-to-End CLI）完了。Phase 2（Experiment Infrastructure）未着手。**
+**Phase 1（End-to-End CLI）・Phase 3（Web UI）完了。Phase 2は一部完了（Experiment Runner未実装）。**
 
 `python scripts/run_video.py --input data/raw/sample01.mp4 --config configs/default.yaml` で
 result.mp4 / persons.csv / frames.csv / config.yaml / metadata.json / run.log が
 `results/<run_id>/` に出力されることを確認済み（sample01.mp4で24トラック検出）。
 
-フェーズ順序は厳守する。Web UI（Phase 3）やDocker化をPhase 2より先に着手しない。
+Web UI（`web/backend`=FastAPI, `web/frontend`=Next.js）はアップロード→実行→結果閲覧まで
+ブラウザで実機確認済み。デプロイ手順は `docs/03_deployment.md`。
+
+Phase 4（評価）はGround Truthデータ（人間が動画を見て0-5点を付与したもの）が無いと着手できない。
+このデータが存在しない状態で評価結果や重み調整結果を捏造しないこと（Research Integrity参照）。
 
 ```
 Phase 1: End-to-End CLI（動画→検出→追跡→特徴量→Score→result.mp4/persons.csv）
@@ -54,3 +58,14 @@ GPUなしで動く研究ロジック（Config loader, Score calculation, Normali
 ## GPU / CPU
 
 `runtime.device: auto` — CUDA利用可能ならCUDA、不可ならCPUにフォールバックする構造にする。
+
+## 既知の環境問題: editable install (`pip install -e .`) が機能しない
+
+この開発環境(Claude Codeのサンドボックス経由のシェル)では、`pip install -e .` が作る
+`.pth`ファイルが `site.addpackage()` で正しく処理されず、`import interest_estimation` が
+失敗する(原因不明、`/tmp`等リポジトリ外のディレクトリでは同じ.pth機構が正常動作するため
+Pythonそのものの一般的な不具合ではなく、このサンドボックス特有の挙動と思われる)。
+
+対策として、`conftest.py`(pytest用)と各エントリポイント(`scripts/run_video.py`,
+`web/backend/app/main.py`等)の先頭で明示的に `sys.path.insert(0, "src")` している。
+新しいエントリポイントを追加する際は同じパターンを踏襲すること。

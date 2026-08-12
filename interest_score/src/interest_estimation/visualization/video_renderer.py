@@ -1,14 +1,21 @@
 """追跡結果とInterest Scoreを描画した動画を書き出す。
 
-legacy_reference/track_video.py はXVID(avi)出力後にffmpegでmp4へ変換していたが、
-opencv-pythonの'mp4v'フォーマットで直接mp4を書き出せるため、外部ffmpeg依存を避けている。
+OpenCVの'mp4v'(MPEG-4 Part 2)はブラウザの<video>タグでは再生できないため、
+legacy_reference/track_video.pyと同様にffmpegでH.264へ変換する(transcode_to_h264)。
+CLI単体での確認用途などffmpegが無い環境でも動作は継続できるよう、変換失敗時は
+mp4v版のファイルをそのまま結果として使うフォールバックにしている。
 """
 from __future__ import annotations
 
+import logging
+import shutil
+import subprocess
 from pathlib import Path
 
 import cv2
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 BOX_COLOR = (255, 0, 0)
 TEXT_COLOR = (255, 0, 0)
@@ -38,3 +45,28 @@ class VideoRenderer:
 
     def release(self) -> None:
         self.writer.release()
+
+
+def transcode_to_h264(src: Path, dst: Path) -> bool:
+    """srcをH.264(yuv420p, faststart)へ変換してdstに書き出す。
+
+    ffmpegが見つからない場合は変換をスキップしてFalseを返す(呼び出し側はsrcを
+    そのまま結果として使う想定)。
+    """
+    if shutil.which("ffmpeg") is None:
+        logger.warning("ffmpegが見つからないためH.264変換をスキップします(ブラウザ再生できない場合があります)")
+        return False
+
+    result = subprocess.run(
+        [
+            "ffmpeg", "-y", "-i", str(src),
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+            str(dst),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        logger.warning("H.264変換に失敗しました: %s", result.stderr[-2000:])
+        return False
+    return True

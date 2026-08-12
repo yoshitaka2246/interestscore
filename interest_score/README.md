@@ -7,11 +7,16 @@
 「関心度」を定量化することを目的とする。詳細は親ディレクトリの `CLAUDE.md` および
 `docs/` を参照。
 
-## 現在のステータス: Phase 1（End-to-End CLI）完了
+## 現在のステータス: Phase 1（CLI）・Phase 3（Web UI）完了
 
 `動画 → 人物検出 → 追跡 → 特徴量 → Interest Score → result.mp4/persons.csv` の
-CLIパイプラインが動作します(`src/interest_estimation/`)。次はPhase 2
-(Experiment Infrastructure)です。詳細は `docs/02_next_session_todo.md` を参照してください。
+CLIパイプラインが動作します(`src/interest_estimation/`)。
+
+Web UI(`web/backend`=FastAPI, `web/frontend`=Next.js)から動画アップロード・実行・結果閲覧が
+可能です。デプロイ手順(Vercel + バックエンド別ホスト)は `docs/03_deployment.md` を参照してください。
+
+Phase 4(評価)は人間が付与したGround Truthデータが必要なため未着手です。
+詳細は `docs/02_next_session_todo.md` を参照してください。
 
 ## パイプライン
 

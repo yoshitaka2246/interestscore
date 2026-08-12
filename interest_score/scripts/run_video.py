@@ -6,6 +6,14 @@
 from __future__ import annotations
 
 import argparse
+import sys
+from pathlib import Path
+
+# pip install -e . のeditable installがこの開発環境では機能しないため(conftest.py参照)、
+# srcを明示的にsys.pathへ追加する。
+SRC_DIR = Path(__file__).resolve().parent.parent / "src"
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
 
 from interest_estimation.pipeline.video_pipeline import VideoPipeline
 from interest_estimation.utils.config import load_config
