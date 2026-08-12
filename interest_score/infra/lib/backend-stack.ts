@@ -94,7 +94,10 @@ export class BackendStack extends cdk.Stack {
       blockDevices: [
         {
           deviceName: "/dev/sda1",
-          volume: ec2.BlockDeviceVolume.ebs(30, { volumeType: ec2.EbsDeviceVolumeType.GP3 }),
+          // GPU AMI(Deep Learning Base)のスナップショットは75GB以上を要求する
+          volume: ec2.BlockDeviceVolume.ebs(props.computeType === "gpu" ? 80 : 30, {
+            volumeType: ec2.EbsDeviceVolumeType.GP3,
+          }),
         },
       ],
     });
