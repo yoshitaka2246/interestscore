@@ -46,17 +46,24 @@ Next.jsのデフォルトのままで自動検出される(変更不要)。
 
 Vercel(HTTPS)上のフロントエンドから呼び出すため、バックエンドも **HTTPSで公開する必要がある**
 (HTTPSページから素のHTTPへのリクエストはブラウザのMixed Content policyでブロックされる)。
-自宅PC/研究室PCで動かす場合は、Cloudflare Tunnel・ngrok・Tailscale Funnel等でHTTPSの
-公開URLを払い出すか、VPS+リバースプロキシ(Caddy等)でHTTPS終端する。
+
+**本番はAWS EC2(CDK管理)で稼働中**: `interest_score/infra/`参照。
+`api.yoshi-yamamoto.com`(Route53 Aレコード + Caddyの自動HTTPS)で公開しており、
+systemdでFastAPIが常駐しているため、EC2インスタンスをStart/Stopするだけで
+コマンド入力なしに使える。詳細・コスト・GPU切り替え方法は`infra/lib/backend-stack.ts`
+のコメントとルート`README`のやり取りを参照。
 
 環境変数:
 
 | 変数 | 例 | 説明 |
 |---|---|---|
-| `CORS_ORIGINS` | `https://interestscore.vercel.app` | 本番Vercel URL(カンマ区切りで複数指定可) |
+| `CORS_ORIGINS` | `https://interestscore.vercel.app,https://api.yoshi-yamamoto.com` | 本番Vercel URL(カンマ区切りで複数指定可) |
 | `CORS_ORIGIN_REGEX` | `https://.*-yoshitaka2246s-projects\.vercel\.app` | Vercelのプレビューデプロイ(PRごとに変わるURL)を許可する場合に指定。未使用なら省略可 |
 
-起動コマンド例:
+(自宅PC/研究室PC等、EC2以外で動かす場合はCloudflare Tunnel・ngrok・Tailscale Funnel等で
+HTTPSの公開URLを払い出すか、VPS+リバースプロキシ(Caddy等)でHTTPS終端する。)
+
+起動コマンド例(ローカル/EC2以外で動かす場合):
 
 ```bash
 cd interest_score/web/backend
@@ -80,6 +87,44 @@ npm run dev
 ```
 
 `http://localhost:3000` で動画アップロード → 実行 → 結果(動画・人物別Interest Score)を確認できる。
+
+## Vercelデプロイで実際にハマった問題(2026-08-12)
+
+Root Directoryを設定してGit連携でデプロイしても本番URLが `404: NOT_FOUND` になり続けた。
+原因は以下3つの複合で、**ビルドログが成功していても本番が404になりうる**ことに注意。
+
+1. **Project SettingsのFramework Presetが`null`(未検出)のままだった**。
+   `rootDirectory`を設定しても`framework`は自動で`nextjs`にならない場合があり、
+   その状態だと`next build`自体は成功する(ログ上は正常)のに、Vercelがその出力を
+   サーバーレス関数用に変換できず`lambdas[].output`が空になり、静的ファイル含め
+   **全ルートが404**になる。`vercel.com/<team>/<project>/settings` →
+   General → Framework Preset を明示的に「Next.js」に設定する
+   (APIなら `PATCH /v9/projects/{id}` に `{"framework":"nextjs"}`)。
+   ビルドログに`Detected Next.js version: ...`という行が出ていれば正しく検出されている。
+
+2. **Deployment Protection(`ssoProtection`)がデフォルトの`.vercel.app`ドメインにも
+   かかっていた**(`deploymentType: "all_except_custom_domains"`)。カスタムドメインを
+   使わず`<project>.vercel.app`だけで公開する場合、これが有効だと本番エイリアスすら
+   認証必須になる。研究用の公開デモとして誰でもアクセスできる状態にしたい場合は、
+   Settings → Deployment Protection で無効化する
+   (`PATCH /v9/projects/{id}` に `{"ssoProtection": null}`)。
+   ※無効化すると誰でも動画アップロード・パイプライン実行ができるようになる点に注意
+   (バックエンド側の計算リソースを消費される)。
+
+3. **Vercel CLIは、Root DirectoryをすでにScopeしたディレクトリの中から実行すると
+   パスが二重になる**(`vercel link`/`vercel deploy`は必ずGitリポジトリの
+   ルートから実行する。`interest_score/web/frontend`の中から実行すると
+   `.../interest_score/web/frontend/interest_score/web/frontend`のような
+   存在しないパスを探しにいってエラーになる)。
+
+デプロイ後に404が出た場合の切り分け手順:
+1. `curl -D - <本番URL>` で `x-vercel-error: NOT_FOUND` かどうか確認(Vercel自体が
+   ルーティングできていない = 上記の問題を疑う)。SSOへの302リダイレクトなら
+   Deployment Protectionが原因。
+2. Vercelダッシュボードでそのデプロイの個別URL(`<project>-<hash>-<team>.vercel.app`)に
+   直接アクセスし、本番エイリアスと挙動が違うか比較する。
+3. `vercel deploy --prod --force`(ビルドキャッシュ無視)を**リポジトリルートから**実行し、
+   ビルドログに`Detected Next.js version`が出るか確認する。
 
 ## 既知の制約
 

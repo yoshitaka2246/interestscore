@@ -13,3 +13,5 @@ venv/
 ~$*
 
 # interest_score以下は interest_score/.gitignore を参照（data/raw, results, *.mp4, *.pt 等）
+.vercel
+.env*
