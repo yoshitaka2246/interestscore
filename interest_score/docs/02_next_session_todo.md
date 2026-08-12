@@ -27,14 +27,22 @@ PyTorchはmacOS x86_64向けに`2.2.2`までしか提供されていない。`.v
 opencv-python 5.x(numpy2必須)が衝突するため、`requirements.txt`で固定済み。
 `ultralytics`が`lap`パッケージを自動インストールしようとするため、`requirements.txt`に明示追加済み。
 
-## Phase 2: Experiment Infrastructure — 一部完了、Experiment Runnerが未着手
+## Phase 2: Experiment Infrastructure — 完了
 
 `docs/01_phase_plan.md`参照。Run ID・metadata.json(git commit hash等)・config.yaml保存・
-Result Directoryは`experiment/result_writer.py`で既に実装済み。残っているのは:
+Result Directoryは`experiment/result_writer.py`で実装済み。
 
-- **Experiment Runner**: `configs/experiments/`配下に複数の実験設定(重みや閾値違い)を置き、
-  一括実行して`results/`に比較可能な形で出力する仕組み。
-- 複数動画・複数configの一括実行CLI(`scripts/run_experiment.py`等)。
+**Experiment Runner**(`scripts/run_experiment.py`)を実装済み:
+
+```bash
+python scripts/run_experiment.py --experiment experiments/score_weight_sweep.yaml
+```
+
+`experiments/*.yaml`に `{name, video, configs: [...]}` 形式で実験定義を書くと、各configで
+通常通り`VideoPipeline`を実行(`results/<run_id>/`は個別run実行時と同じ形式)し、加えて
+`results/experiment_<name>_<timestamp>/summary.csv`に config・run_id・トラック数・
+Interest Scoreの平均/最大/最小をまとめる。`configs/experiments/`には重みを変えた
+config例(`dwell_heavy.yaml`, `speed_heavy.yaml`)を置いてある。
 
 ## Phase 3: Web UI — 完了
 

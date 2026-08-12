@@ -9,10 +9,12 @@
   `video.mp4 → Detection → Tracking → Feature → Score → result.mp4 + persons.csv` が安定動作すること。
   `src/interest_estimation/` 配下に実装済み。sample01.mp4での動作確認済み。
 
-- [~] **Phase 2: Experiment Infrastructure**(一部完了)
+- [x] **Phase 2: Experiment Infrastructure**
   YAML Config運用・Run ID・metadata.json（git commit hash・Pythonバージョン等）・Result Directoryは
   `experiment/result_writer.py`で実装済み(Phase 1と同時に完了)。
-  複数config一括実行の**Experiment Runner**は未実装(`docs/02_next_session_todo.md`参照)。
+  複数config一括実行の**Experiment Runner**(`scripts/run_experiment.py`)を実装し、
+  `experiments/score_weight_sweep.yaml`(3configの重み比較)で動作確認済み。
+  結果は`results/experiment_<name>_<timestamp>/summary.csv`に出力される。
 
 - [x] **Phase 3: Web UI**
   動画アップロード、実行トリガー、進捗表示(ポーリング)、結果閲覧(動画+人物別Interest Score表)を実装。

@@ -5,7 +5,7 @@
 
 ## 現在のフェーズ
 
-**Phase 1（End-to-End CLI）・Phase 3（Web UI）完了。Phase 2は一部完了（Experiment Runner未実装）。**
+**Phase 1（End-to-End CLI）・Phase 2（Experiment Infrastructure）・Phase 3（Web UI）完了。**
 
 `python scripts/run_video.py --input data/raw/sample01.mp4 --config configs/default.yaml` で
 result.mp4 / persons.csv / frames.csv / config.yaml / metadata.json / run.log が

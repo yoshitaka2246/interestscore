@@ -1,0 +1,8 @@
+# Experiment定義: 同じ動画に対して重みの異なるconfigを一括実行し、Interest Scoreの分布を比較する。
+# 実行: python scripts/run_experiment.py --experiment experiments/score_weight_sweep.yaml
+name: score_weight_sweep
+video: data/raw/sample01.mp4
+configs:
+  - configs/default.yaml
+  - configs/experiments/dwell_heavy.yaml
+  - configs/experiments/speed_heavy.yaml
